@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"strconv"
+
+	"github.com/manifoldco/promptui"
 )
 
 // cli stdin
@@ -24,7 +26,11 @@ import (
 // loop through and find + or - and do each operation
 // return the result
 
-var input = []string{"1", "+", "2", "*", "3"}
+// input from cli
+// REST api
+// goroutines
+
+var input = []string{"1", "+", "2", "*", "3", "+", "-3"}
 
 type Operator string
 
@@ -53,6 +59,75 @@ func isNonPriorityOperator(value string) bool {
 
 type Calculator struct {
 	input []string
+}
+
+func NewCalculator(input []string) *Calculator {
+	return &Calculator{input: input}
+}
+
+func (c *Calculator) Exec() int {
+	var current string
+	var next string
+	orderedOperations := make([]string, 0)
+
+	for i := 0; i < len(input); i++ {
+		current = input[i]
+
+		if i+1 < len(input) {
+			next = input[i+1]
+		} else {
+			next = ""
+		}
+
+		// if priority operator, immediately do operation
+		if isPriorityOperator(current) {
+			lastIdx := len(orderedOperations) - 1
+			lastInt, _ := strconv.Atoi(orderedOperations[lastIdx])
+			nextInt, _ := strconv.Atoi(next)
+
+			if current == string(Multiply) {
+				orderedOperations[lastIdx] = strconv.Itoa(c.Multiply(lastInt, nextInt))
+			} else if current == string(Divide) {
+				orderedOperations[lastIdx] = strconv.Itoa(c.Divide(lastInt, nextInt))
+			}
+
+			// we looked ahead already to complete the above operation, so skip the next element
+			i++
+		} else {
+			orderedOperations = append(orderedOperations, current)
+		}
+	}
+
+	var counter int
+	var operator string
+
+	for i, el := range orderedOperations {
+		if i == 0 {
+			counter, _ = strconv.Atoi(el)
+			continue
+		}
+
+		if isNonPriorityOperator(el) {
+			operator = el
+			continue
+		}
+
+		nextInt, err := strconv.Atoi(el)
+
+		if err != nil {
+			panic(err)
+		}
+
+		if operator == string(Add) {
+			counter = c.Add(counter, nextInt)
+		} else if el == string(Subtract) {
+			counter = c.Subtract(counter, nextInt)
+		}
+	}
+
+	fmt.Println(orderedOperations)
+
+	return counter
 }
 
 func (c *Calculator) Add(values ...int) int {
@@ -91,69 +166,41 @@ func (c *Calculator) Divide(values ...int) int {
 	return counter
 }
 
-func main() {
-	var current string
-	var next string
-	orderedOperations := make([]string, 0)
-	calculator := &Calculator{
-		input: input,
-	}
+func prompt() {
+	// TODO
+	options := []string{"Calculate", "Clear", "Del", "+", "-", "*", "/", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+	result := ""
 
-	for i := 0; i < len(input); i++ {
-		current = input[i]
-
-		if i+1 < len(input) {
-			next = input[i+1]
-		} else {
-			next = ""
+	for {
+		prompt := promptui.Select{
+			Label:        "Select an option",
+			Items:        options,
+			Size:         16,
+			HideSelected: true,
 		}
 
-		// if priority operator, immediately do operation
-		if isPriorityOperator(current) {
-			lastIdx := len(orderedOperations) - 1
-			lastInt, _ := strconv.Atoi(orderedOperations[lastIdx])
-			nextInt, _ := strconv.Atoi(next)
-
-			if current == string(Multiply) {
-				orderedOperations[lastIdx] = strconv.Itoa(calculator.Multiply(lastInt, nextInt))
-			} else if current == string(Divide) {
-				orderedOperations[lastIdx] = strconv.Itoa(calculator.Divide(lastInt, nextInt))
-			}
-
-			// we looked ahead already to complete the above operation, so skip the next element
-			i++
-		} else {
-			orderedOperations = append(orderedOperations, current)
-		}
-	}
-
-	var counter int
-	var operator string
-
-	for i, el := range orderedOperations {
-		if i == 0 {
-			counter, _ = strconv.Atoi(el)
-			continue
-		}
-
-		if isNonPriorityOperator(el) {
-			operator = el
-			continue
-		}
-
-		nextInt, err := strconv.Atoi(el)
+		_, promptResult, err := prompt.Run()
 
 		if err != nil {
-			panic(err)
+			fmt.Printf("Prompt failed %v\n", err)
+			return
 		}
 
-		if operator == string(Add) {
-			counter = calculator.Add(counter, nextInt)
-		} else if el == string(Subtract) {
-			counter = calculator.Subtract(counter, nextInt)
+		if promptResult == "Calculate" {
+			fmt.Println("Exiting...")
+			break
 		}
+
+		result = result + promptResult
+
+		fmt.Print("\033[u") // restore the cursor position
+		fmt.Printf("Operation: %q\n", result)
 	}
+}
 
-	fmt.Println(orderedOperations)
-	fmt.Println(counter) // 7
+func main() {
+	calc := NewCalculator(input)
+	result := calc.Exec()
+
+	fmt.Println(result)
 }
