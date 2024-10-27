@@ -3,42 +3,29 @@ package main
 import (
 	"fmt"
 	"strconv"
+	"strings"
+	"unicode"
 
 	"github.com/manifoldco/promptui"
 )
 
-// cli stdin
-// stdout: stdin = answer
-// example:
-// ["9", +, 2, *, 2, +, 3, *, 4]
-// [9, +, 4, +, ]
-// 9 + 2 * 2 + 3 * 4
-// 9 + 4 + 12
-
-// types:
-// Parser Object -> Parse, Validate; Operations
-// Calculator Object -> Add, Subtract, Multiply, Divide, Clear; CurrentValue
-// History Map -> key: operation, value: result
-
-// split the string into an array of strings
-// 2 loops for operations
-// loop through and find * or / and do the operation on the previous and next values and push to new array
-// loop through and find + or - and do each operation
-// return the result
-
 // input from cli
+// separate prompt and calculator into different packages
 // REST api
+// history with redis
 // goroutines
-
-var input = []string{"1", "+", "2", "*", "3", "+", "-3"}
 
 type Operator string
 
 const (
-	Add      Operator = "+"
-	Subtract Operator = "-"
-	Divide   Operator = "/"
-	Multiply Operator = "*"
+	Add       Operator = "+"
+	Subtract  Operator = "-"
+	Divide    Operator = "/"
+	Multiply  Operator = "*"
+	Calculate Operator = "Calculate"
+	Clear     Operator = "Clear"
+	Delete    Operator = "Delete"
+	Negative  Operator = "Negative"
 )
 
 func isPriorityOperator(value string) bool {
@@ -61,20 +48,22 @@ type Calculator struct {
 	input []string
 }
 
-func NewCalculator(input []string) *Calculator {
-	return &Calculator{input: input}
+func NewCalculator() *Calculator {
+	return &Calculator{}
 }
 
-func (c *Calculator) Exec() int {
+func (c *Calculator) Exec(input []string) int {
 	var current string
 	var next string
 	orderedOperations := make([]string, 0)
 
-	for i := 0; i < len(input); i++ {
-		current = input[i]
+	c.input = input
 
-		if i+1 < len(input) {
-			next = input[i+1]
+	for i := 0; i < len(c.input); i++ {
+		current = c.input[i]
+
+		if i+1 < len(c.input) {
+			next = c.input[i+1]
 		} else {
 			next = ""
 		}
@@ -166,9 +155,17 @@ func (c *Calculator) Divide(values ...int) int {
 	return counter
 }
 
-func prompt() {
-	// TODO
-	options := []string{"Calculate", "Clear", "Del", "+", "-", "*", "/", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+func convertStringToArray(r string) []string {
+	return strings.Split(r, " ")
+}
+
+func (c *Calculator) Prompt() []string {
+	// this is how i'd love for the prompt to show up
+	options := []string{
+		"Calculate", "Clear", "Delete",
+		"+", "-", "*", "/", "Negative",
+		"1", "2", "3", "4", "5", "6", "7", "8", "9",
+	}
 	result := ""
 
 	for {
@@ -183,24 +180,46 @@ func prompt() {
 
 		if err != nil {
 			fmt.Printf("Prompt failed %v\n", err)
-			return
+			return convertStringToArray(result)
 		}
 
-		if promptResult == "Calculate" {
-			fmt.Println("Exiting...")
-			break
+		if promptResult == string(Calculate) {
+			return convertStringToArray(result)
 		}
 
-		result = result + promptResult
+		// TODO: convert to switch
+		if promptResult == string(Clear) {
+			result = ""
+		} else if promptResult == string(Delete) {
+			lastCharIdx := len(result) - 1
+			lastChar := result[:lastCharIdx]
+			lastRune := []rune(lastChar)[0]
+
+			// check if last character is a space; if it is, remove two
+			if unicode.IsSpace(lastRune) {
+				result = result[:lastCharIdx-1]
+			} else {
+				result = result[:lastCharIdx]
+			}
+		} else if promptResult == string(Add) ||
+			promptResult == string(Subtract) ||
+			promptResult == string(Divide) ||
+			promptResult == string(Multiply) {
+
+			result = result + " " + promptResult + " "
+		} else {
+			result = result + promptResult
+		}
 
 		fmt.Print("\033[u") // restore the cursor position
-		fmt.Printf("Operation: %q\n", result)
+		fmt.Printf("> %q\n", result)
 	}
 }
 
 func main() {
-	calc := NewCalculator(input)
-	result := calc.Exec()
+	calc := NewCalculator()
+	input := calc.Prompt()
+	result := calc.Exec(input)
 
 	fmt.Println(result)
 }
