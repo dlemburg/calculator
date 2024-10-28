@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"unicode"
 
 	"github.com/manifoldco/promptui"
 )
@@ -27,6 +26,14 @@ const (
 	Delete    Operator = "Delete"
 	Negative  Operator = "Negative"
 )
+
+func isOperator(value string) bool {
+	if value == string(Divide) || value == string(Multiply) || value == string(Subtract) || value == string(Add) {
+		return true
+	}
+
+	return false
+}
 
 func isPriorityOperator(value string) bool {
 	if value == string(Divide) || value == string(Multiply) {
@@ -162,7 +169,7 @@ func convertStringToArray(r string) []string {
 func (c *Calculator) Prompt() []string {
 	// this is how i'd love for the prompt to show up
 	options := []string{
-		"Calculate", "Clear", "Delete",
+		"Calculate", "Clear",
 		"+", "-", "*", "/", "Negative",
 		"1", "2", "3", "4", "5", "6", "7", "8", "9",
 	}
@@ -190,29 +197,27 @@ func (c *Calculator) Prompt() []string {
 		// TODO: convert to switch
 		if promptResult == string(Clear) {
 			result = ""
-		} else if promptResult == string(Delete) {
-			lastCharIdx := len(result) - 1
-			lastChar := result[:lastCharIdx]
-			lastRune := []rune(lastChar)[0]
-
-			// check if last character is a space; if it is, remove two
-			if unicode.IsSpace(lastRune) {
-				result = result[:lastCharIdx-1]
+		} else if isOperator(promptResult) {
+			if len(result) == 0 {
+				result = ""
 			} else {
-				result = result[:lastCharIdx]
+				result = result + " " + promptResult + " "
 			}
-		} else if promptResult == string(Add) ||
-			promptResult == string(Subtract) ||
-			promptResult == string(Divide) ||
-			promptResult == string(Multiply) {
+			// } else if promptResult == "Negative" {
+			// 	lastCharIdx := len(result) - 1
+			// 	lastChar := result[:lastCharIdx]
+			// 	lastRune := []rune(lastChar)[0]
 
-			result = result + " " + promptResult + " "
+			// 	if unicode.IsSpace(lastRune) {
+			// 		result = result + "-"
+			// 	}
+			// }
 		} else {
 			result = result + promptResult
 		}
 
 		fmt.Print("\033[u") // restore the cursor position
-		fmt.Printf("> %q\n", result)
+		fmt.Printf("\n> %q\n", result)
 	}
 }
 
