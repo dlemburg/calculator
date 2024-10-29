@@ -8,7 +8,8 @@ import (
 	"github.com/manifoldco/promptui"
 )
 
-// input from cli
+// negative
+// gofmt
 // separate prompt and calculator into different packages
 // REST api
 // history with redis
@@ -24,7 +25,6 @@ const (
 	Calculate Operator = "Calculate"
 	Clear     Operator = "Clear"
 	Delete    Operator = "Delete"
-	Negative  Operator = "Negative"
 )
 
 func isOperator(value string) bool {
@@ -75,7 +75,7 @@ func (c *Calculator) Exec(input []string) int {
 			next = ""
 		}
 
-		// if priority operator, immediately do operation
+		// if priority operator, immediately do operation and append result into orderedOperations
 		if isPriorityOperator(current) {
 			lastIdx := len(orderedOperations) - 1
 			lastInt, _ := strconv.Atoi(orderedOperations[lastIdx])
@@ -170,7 +170,7 @@ func (c *Calculator) Prompt() []string {
 	// this is how i'd love for the prompt to show up
 	options := []string{
 		"Calculate", "Clear",
-		"+", "-", "*", "/", "Negative",
+		"+", "-", "*", "/",
 		"1", "2", "3", "4", "5", "6", "7", "8", "9",
 	}
 	result := ""
@@ -198,24 +198,32 @@ func (c *Calculator) Prompt() []string {
 		if promptResult == string(Clear) {
 			result = ""
 		} else if isOperator(promptResult) {
-			if len(result) == 0 {
+			// operators not allowed if there's no input
+			if promptResult == string(Subtract) {
+				// first character: negative operator
+				if len(result) == 0 {
+					result = "-"
+				} else {
+					// negative operator
+					if len(result) > 2 && isOperator(result[len(result)-2:len(result)-1]) {
+						result = result + "-"
+					}
+
+					// subtract operator
+					result = result + " " + promptResult + " "
+				}
+				// if current result is empty, do not allow non (-) operator
+			} else if len(result) == 0 {
 				result = ""
+				// append sanitized operator to result
 			} else {
 				result = result + " " + promptResult + " "
 			}
-			// } else if promptResult == "Negative" {
-			// 	lastCharIdx := len(result) - 1
-			// 	lastChar := result[:lastCharIdx]
-			// 	lastRune := []rune(lastChar)[0]
-
-			// 	if unicode.IsSpace(lastRune) {
-			// 		result = result + "-"
-			// 	}
-			// }
 		} else {
 			result = result + promptResult
 		}
 
+		// keep result inlined
 		fmt.Print("\033[u") // restore the cursor position
 		fmt.Printf("\n> %q\n", result)
 	}
