@@ -8,8 +8,7 @@ import (
 	"github.com/manifoldco/promptui"
 )
 
-// negative
-// gofmt
+// implement calculator state
 // separate prompt and calculator into different packages
 // REST api
 // history with redis
@@ -51,8 +50,16 @@ func isNonPriorityOperator(value string) bool {
 	return false
 }
 
+type CalculatorState struct {
+	lastInput          string
+	lastInputSanitized string
+	currentInput       string
+	result             string
+}
+
 type Calculator struct {
 	input []string
+	state *CalculatorState
 }
 
 func NewCalculator() *Calculator {
@@ -175,6 +182,13 @@ func (c *Calculator) Prompt() []string {
 	}
 	result := ""
 
+	c.state = &CalculatorState{
+		lastInput:          "",
+		lastInputSanitized: "",
+		currentInput:       "",
+		result:             "",
+	}
+
 	for {
 		prompt := promptui.Select{
 			Label:        "Select an option",
@@ -184,6 +198,10 @@ func (c *Calculator) Prompt() []string {
 		}
 
 		_, promptResult, err := prompt.Run()
+
+		/**
+		* validate and append to result
+		**/
 
 		if err != nil {
 			fmt.Printf("Prompt failed %v\n", err)
